@@ -120,8 +120,8 @@ var (
 			pilotDomain := role.Domain
 			if len(role.Domain) == 0 {
 				if registry == serviceregistry.KubernetesRegistry {
-					role.Domain = os.Getenv("POD_NAMESPACE") + ".svc.cluster.local"
-					pilotDomain = "cluster.local"
+					role.Domain = fmt.Sprintf("%s.%s.rio.local", os.Getenv("RIO_STACK"), os.Getenv("RIO_PROJECT"))
+					pilotDomain = "rio.local"
 				} else if registry == serviceregistry.ConsulRegistry {
 					role.Domain = "service.consul"
 				} else {

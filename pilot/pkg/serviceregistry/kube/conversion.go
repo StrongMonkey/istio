@@ -20,12 +20,11 @@ import (
 	"strconv"
 	"strings"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
+	"istio.io/istio/pilot/pkg/model"
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"istio.io/istio/pilot/pkg/model"
 )
 
 const (
@@ -103,11 +102,15 @@ func convertService(svc v1.Service, domainSuffix string) *model.Service {
 	}
 	sort.Sort(sort.StringSlice(serviceaccounts))
 
+	if strings.Contains(svc.Annotations["objectset.rio.cattle.io/owner-gvk"], "RouteSet") || strings.Contains(svc.Annotations["objectset.rio.cattle.io/owner-gvk"], "ExternalService") {
+		return nil
+	}
+
 	return &model.Service{
 		Hostname:              serviceHostname(svc.Name, svc.Namespace, domainSuffix),
 		Ports:                 ports,
 		Address:               addr,
-		ExternalName:          model.Hostname(external),
+		ExternalName:          rioServiceHostname(svc.Labels[RioServiceName], svc.Labels[RioStackName], svc.Labels[RioProjectName]),
 		ServiceAccounts:       serviceaccounts,
 		LoadBalancingDisabled: loadBalancingDisabled,
 		MeshExternal:          meshExternal,
@@ -122,6 +125,10 @@ func convertService(svc v1.Service, domainSuffix string) *model.Service {
 }
 
 // serviceHostname produces FQDN for a k8s service
+func rioServiceHostname(name, stackName, projectName string) model.Hostname {
+	return model.Hostname(fmt.Sprintf("%s.%s.%s.rio.local", name, stackName, projectName))
+}
+
 func serviceHostname(name, namespace, domainSuffix string) model.Hostname {
 	return model.Hostname(fmt.Sprintf("%s.%s.svc.%s", name, namespace, domainSuffix))
 }

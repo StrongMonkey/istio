@@ -50,6 +50,10 @@ const (
 	PrometheusPath = "prometheus.io/path"
 	// PrometheusPathDefault is the default value for the PrometheusPath annotation
 	PrometheusPathDefault = "/metrics"
+
+	RioServiceName = "rio.cattle.io/service"
+	RioStackName = "rio.cattle.io/stack"
+	RioProjectName = "rio.cattle.io/project"
 )
 
 var (

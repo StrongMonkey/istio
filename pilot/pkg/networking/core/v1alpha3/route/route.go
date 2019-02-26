@@ -15,6 +15,8 @@
 package route
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -158,7 +160,40 @@ func separateVSHostsAndServices(virtualService model.Config,
 			hosts = append(hosts, host)
 		}
 	}
+	if strings.Contains(virtualService.Annotations["objectset.rio.cattle.io/owner-gvk"], "RouteSet") || strings.Contains(virtualService.Annotations["objectset.rio.cattle.io/owner-gvk"], "ExternalService"){
+		servicesInVirtualService = append(servicesInVirtualService, &model.Service{
+			Hostname: model.Hostname(hashIfNeed(virtualService.Name, virtualService.Labels["rio.cattle.io/stack"], virtualService.Labels["rio.cattle.io/project"])),
+			ExternalName: model.Hostname(fmt.Sprintf("%s.%s.%s.rio.local", virtualService.Name, virtualService.Labels["rio.cattle.io/stack"], virtualService.Labels["rio.cattle.io/project"])),
+			Ports: model.PortList{
+				{
+					Name: "http-80-80",
+					Port: 80,
+					Protocol: model.ProtocolHTTP,
+				},
+			},
+		})
+	}
 	return hosts, servicesInVirtualService
+}
+
+func stackNamespaceOnlyHash(projectName, stackName string) string {
+	parts := strings.Split(stackName, ":")
+	stackName = parts[len(parts)-1]
+
+	id := fmt.Sprintf("%s:%s", projectName, stackName)
+	h := sha256.New()
+	h.Write([]byte(id))
+	hash := hex.EncodeToString(h.Sum(nil))
+	return string(hash)[:8]
+}
+
+func hashIfNeed(name, stackName, projectName string) string {
+	fullPath := fmt.Sprintf("%s-%s", name, stackNamespaceOnlyHash(projectName, stackName))
+	if len(fullPath) > 63 {
+		digest := sha256.Sum256([]byte(fullPath))
+		return fullPath[0:57] + "-" + string(digest[:])[0:5]
+	}
+	return fullPath
 }
 
 // buildVirtualHostsForVirtualService creates virtual hosts corresponding to a virtual service.

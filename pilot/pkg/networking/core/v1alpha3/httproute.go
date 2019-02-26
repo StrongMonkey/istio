@@ -22,7 +22,6 @@ import (
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	"github.com/gogo/protobuf/types"
-
 	"istio.io/istio/pilot/pkg/model"
 	istio_route "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
 	"istio.io/istio/pilot/pkg/networking/plugin"
@@ -116,6 +115,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 			if svcPort, exists := svc.Ports.GetByPort(listenerPort); exists {
 				nameToServiceMap[svc.Hostname] = &model.Service{
 					Hostname:     svc.Hostname,
+					ExternalName: svc.ExternalName,
 					Address:      svc.Address,
 					ClusterVIPs:  svc.ClusterVIPs,
 					MeshExternal: svc.MeshExternal,
@@ -193,7 +193,10 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 // a proxy node
 func generateVirtualHostDomains(service *model.Service, port int, node *model.Proxy) []string {
 	domains := []string{service.Hostname.String(), fmt.Sprintf("%s:%d", service.Hostname, port)}
-	domains = append(domains, generateAltVirtualHosts(service.Hostname.String(), port, node.Domain)...)
+	if service.ExternalName.String() != "" {
+		domains = append(domains, service.ExternalName.String(), fmt.Sprintf("%s:%d", service.ExternalName, port))
+		domains = append(domains, generateAltVirtualHosts(service.ExternalName.String(), port, node.Domain)...)
+	}
 
 	if len(service.Address) > 0 && service.Address != model.UnspecifiedIP {
 		svcAddr := service.GetServiceAddressForProxy(node)
